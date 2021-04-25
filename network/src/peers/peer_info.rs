@@ -201,7 +201,7 @@ impl PeerInfo {
                 Ok(())
             }
             PeerStatus::Disconnected | PeerStatus::NeverConnected => {
-                error!("Attempting to disconnect from a disconnected peer - {}", self.address);
+                error!("network peers peer_info set_disconnected():  Attempting to disconnect from a disconnected peer - {}", self.address);
                 Err(NetworkError::PeerAlreadyDisconnected)
             }
         }

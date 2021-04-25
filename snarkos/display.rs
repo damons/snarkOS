@@ -43,6 +43,7 @@ pub fn render_welcome(config: &Config) -> String {
     output += &"Welcome to Aleo! We thank you for running a network node and supporting privacy.\n\n".bold();
 
     let mut is_miner = config.miner.is_miner;
+    let mut is_pirate = config.pirate.is_pirate;
     if is_miner {
         match AccountAddress::<Components>::from_str(&config.miner.miner_address) {
             Ok(miner_address) => {
@@ -59,15 +60,35 @@ pub fn render_welcome(config: &Config) -> String {
             }
         }
     }
+    if is_pirate {
+        match AccountAddress::<Components>::from_str(&config.pirate.pirate_address) {
+            Ok(pirate_address) => {
+                output += &format!("Your PIRATE! address is {}.\n\n", pirate_address)
+                    .bold()
+                    .to_string();
+            }
+            Err(_) => {
+                output +=
+                    &"Pirate not started. Please specify a valid pirate name (any name will do, sir!) in your ~/.pirateOS/pirate.toml file or by using the --pirate-address option in the CLI.\n\n"
+                .red().bold();
+
+                is_pirate = false;
+            }
+        }
+    }
 
     let network = match config.aleo.network_id {
         0 => "mainnet".to_string(),
+        3 => "piratenet".to_string(),
         i => format!("testnet{}", i),
     };
     if is_miner {
         output += &format!("Starting a mining node on {}.\n", network).bold().to_string();
     } else {
         output += &format!("Starting a client node on {}.\n", network).bold().to_string();
+    }
+    if is_pirate {
+        output += &format!("Starting a PIRATE node on {}.\n", network).bold().to_string();
     }
 
     output

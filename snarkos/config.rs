@@ -45,6 +45,10 @@ pub const TESTNET_BOOTNODES: &[&str] = &[
     // "178.128.18.3:4131",
     // "50.18.83.123:4131",
 ]; // "192.168.0.1:4131"
+pub const PIRATENET_BOOTNODES: &[&str] = &[
+    "104.48.103.202:4133", // rama
+];
+    
 
 /// Represents all configuration options for a node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,6 +56,7 @@ pub struct Config {
     pub aleo: Aleo,
     pub node: Node,
     pub miner: Miner,
+    pub pirate: Pirate,
     pub rpc: JsonRPC,
     pub p2p: P2P,
 }
@@ -86,6 +91,12 @@ pub struct Miner {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Pirate {
+    pub is_pirate: bool,
+    pub pirate_address: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct P2P {
     #[serde(skip_serializing, skip_deserializing)]
     pub bootnodes: Vec<String>,
@@ -99,28 +110,32 @@ pub struct P2P {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            aleo: Aleo { network_id: 1 },
+            aleo: Aleo { network_id: 3 },
             node: Node {
                 dir: Self::snarkos_dir(),
-                db: "snarkos_testnet1".into(),
+                db: "snarkos_piratenet".into(),
                 is_bootnode: false,
                 ip: "0.0.0.0".into(),
-                port: 4131,
+                port: 4133,
                 verbose: 2,
             },
             miner: Miner {
                 is_miner: false,
                 miner_address: "".into(),
             },
+            pirate: Pirate {
+                is_pirate: true,
+                pirate_address: "".into(),
+            },
             rpc: JsonRPC {
                 json_rpc: true,
-                port: 3030,
+                port: 3033,
                 // TODO (raychu86) Establish a random username and password for the node operator by default
                 username: Some("Username".into()),
                 password: Some("Password".into()),
             },
             p2p: P2P {
-                bootnodes: TESTNET_BOOTNODES
+                bootnodes: PIRATENET_BOOTNODES
                     .iter()
                     .map(|node| (*node).to_string())
                     .collect::<Vec<String>>(),
@@ -138,19 +153,19 @@ impl Config {
     /// The directory that snarkOS system files will be stored
     fn snarkos_dir() -> PathBuf {
         let mut path = home_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
-        path.push(".snarkOS/");
+        path.push(".pirateOS/");
 
         path
     }
 
-    /// Read the config from the `config.toml` file
+    /// Read the config from the `pirate.toml` file
     fn read_config() -> Result<Self, CliError> {
         let snarkos_path = Self::snarkos_dir();
         let mut config_path = snarkos_path.clone();
-        config_path.push("config.toml");
+        config_path.push("pirate.toml");
 
         if !Path::exists(&config_path) {
-            // Create a new default `config.toml` file if it doesn't already exist
+            // Create a new default `pirate.toml` file if it doesn't already exist
             fs::create_dir_all(&snarkos_path)?;
 
             let default_config_string = toml::to_string(&Config::default())?;
@@ -171,6 +186,7 @@ impl Config {
 
         let bootnodes = match config.aleo.network_id {
             0 => MAINNET_BOOTNODES,
+            3 => PIRATENET_BOOTNODES,
             _ => TESTNET_BOOTNODES,
         };
 
@@ -188,10 +204,12 @@ impl Config {
             "is-bootnode" => self.is_bootnode(arguments.is_present(option)),
             "is-miner" => self.is_miner(arguments.is_present(option)),
             "no-jsonrpc" => self.no_jsonrpc(arguments.is_present(option)),
+            "is-pirate" => self.is_pirate(arguments.is_present(option)),
             // Options
             "connect" => self.connect(arguments.value_of(option)),
             "ip" => self.ip(arguments.value_of(option)),
             "miner-address" => self.miner_address(arguments.value_of(option)),
+            "pirate-address" => self.pirate_address(arguments.value_of(option)),
             "mempool-interval" => self.mempool_interval(clap::value_t!(arguments.value_of(*option), u8).ok()),
             "max-peers" => self.max_peers(clap::value_t!(arguments.value_of(*option), u16).ok()),
             "min-peers" => self.min_peers(clap::value_t!(arguments.value_of(*option), u16).ok()),
@@ -214,6 +232,15 @@ impl Config {
                     self.node.db = "snarkos_mainnet".into();
                     self.node.port = 4130;
                     self.p2p.bootnodes = MAINNET_BOOTNODES
+                        .iter()
+                        .map(|node| (*node).to_string())
+                        .collect::<Vec<String>>();
+                    self.aleo.network_id = network_id;
+                }
+                3 => {
+                    self.node.db = "snarkos_piratenet".into();
+                    self.node.port = 4133;
+                    self.p2p.bootnodes = PIRATENET_BOOTNODES
                         .iter()
                         .map(|node| (*node).to_string())
                         .collect::<Vec<String>>();
@@ -246,6 +273,10 @@ impl Config {
     fn is_miner(&mut self, argument: bool) {
         self.miner.is_miner = argument;
     }
+    
+    fn is_pirate(&mut self, argument: bool) {
+        self.pirate.is_pirate = argument;
+    }
 
     fn ip(&mut self, argument: Option<&str>) {
         if let Some(ip) = argument {
@@ -276,6 +307,12 @@ impl Config {
     fn miner_address(&mut self, argument: Option<&str>) {
         if let Some(miner_address) = argument {
             self.miner.miner_address = miner_address.to_string();
+        }
+    }
+
+    fn pirate_address(&mut self, argument: Option<&str>) {
+        if let Some(pirate_address) = argument {
+            self.pirate.pirate_address = pirate_address.to_string();
         }
     }
 
@@ -348,8 +385,8 @@ pub struct ConfigCli;
 impl CLI for ConfigCli {
     type Config = Config;
 
-    const ABOUT: AboutType = "Run an Aleo node (include -h for more options)";
-    const FLAGS: &'static [FlagType] = &[flag::NO_JSONRPC, flag::IS_BOOTNODE, flag::IS_MINER];
+    const ABOUT: AboutType = "Run a PIRATE Aleo node (include -h for more options)";
+    const FLAGS: &'static [FlagType] = &[flag::NO_JSONRPC, flag::IS_BOOTNODE, flag::IS_MINER, flag::IS_PIRATE];
     const NAME: NameType = "snarkOS";
     const OPTIONS: &'static [OptionType] = &[
         option::IP,
@@ -376,11 +413,13 @@ impl CLI for ConfigCli {
             "no-jsonrpc",
             "is-bootnode",
             "is-miner",
+            "is-pirate",
             "ip",
             "port",
             "path",
             "connect",
             "miner-address",
+            "pirate-address",
             "mempool-interval",
             "min-peers",
             "max-peers",

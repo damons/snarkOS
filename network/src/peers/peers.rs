@@ -41,7 +41,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         // Fetch the number of connected peers.
         let number_of_connected_peers = self.peer_book.read().number_of_connected_peers() as usize;
         trace!(
-            "Connected to {} peer{}",
+            "network peers peer update_peers():  Connected to {} peer{}",
             number_of_connected_peers,
             if number_of_connected_peers == 1 { "" } else { "s" }
         );
@@ -68,7 +68,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         if number_of_connected_peers > max_peers {
             let number_to_disconnect = number_of_connected_peers - max_peers;
             trace!(
-                "Disconnecting from the most recent {} peers to maintain their permitted number",
+                "network peers peer update_peers():  Disconnecting from the most recent {} peers to maintain their permitted number",
                 number_to_disconnect
             );
 
@@ -162,7 +162,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let len = noise.write_message(&[], &mut buffer)?;
         writer.write_all(&[len as u8]).await?;
         writer.write_all(&buffer[..len]).await?;
-        trace!("sent e (XX handshake part 1/3) to {}", remote_address);
+        trace!("network peers peer initiate_connection():  sent e (XX handshake part 1/3) to {}", remote_address);
 
         // <- e, ee, s, es
         reader.read_exact(&mut buf[..1]).await?;
@@ -173,14 +173,14 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let len = reader.read_exact(&mut buf[..len]).await?;
         let len = noise.read_message(&buf[..len], &mut buffer)?;
         let _peer_version = Version::deserialize(&buffer[..len])?;
-        trace!("received e, ee, s, es (XX handshake part 2/3) from {}", remote_address);
+        trace!("network peers peer initiate_connection():  received e, ee, s, es (XX handshake part 2/3) from {}", remote_address);
 
         // -> s, se, psk
         let own_version = Version::serialize(&Version::new(1u64, own_address.port())).unwrap();
         let len = noise.write_message(&own_version, &mut buffer)?;
         writer.write_all(&[len as u8]).await?;
         writer.write_all(&buffer[..len]).await?;
-        trace!("sent s, se, psk (XX handshake part 3/3) to {}", remote_address);
+        trace!("network peers peer initiate_connection():  sent s, se, psk (XX handshake part 3/3) to {}", remote_address);
 
         let noise = Arc::new(Mutex::new(noise.into_transport_mode()?));
         let writer = ConnWriter::new(remote_address, writer, buffer.clone(), Arc::clone(&noise));
@@ -204,7 +204,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
             conn_listening_task.abort();
         }
 
-        trace!("Connected to {}", remote_address);
+        trace!("network peers peer initiate_connection():  Connected to {}", remote_address);
 
         Ok(())
     }
@@ -218,7 +218,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
     /// This function filters out any bootnode peers the node server is already connected to.
     ///
     async fn connect_to_bootnodes(&self) {
-        trace!("Connecting to default bootnodes");
+        trace!("network peers peer connect_to_bootnodes():  Connecting to default bootnodes");
 
         // Fetch the current connected peers of this node.
         let connected_peers = self.connected_addrs();
@@ -232,7 +232,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
             .copied()
         {
             if let Err(e) = self.initiate_connection(bootnode_address).await {
-                warn!("Couldn't connect to bootnode {}: {}", bootnode_address, e);
+                warn!("network peers peer connect_to_bootnodes(): Couldn't connect to bootnode {}: {}", bootnode_address, e);
                 let _ = self.disconnect_from_peer(bootnode_address);
             }
         }
@@ -240,7 +240,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
     /// Broadcasts a connection request to all disconnected peers.
     async fn connect_to_disconnected_peers(&self, count: usize) {
-        trace!("Connecting to disconnected peers");
+        trace!("network peers peer connect_to_disconnected_peers(): Connecting to disconnected peers");
 
         // Iterate through a selection of random peers and attempt to connect.
         let random_peers = self
@@ -254,7 +254,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
         for remote_address in random_peers {
             if let Err(e) = self.initiate_connection(remote_address).await {
-                trace!("Couldn't connect to the disconnected peer {}: {}", remote_address, e);
+                trace!("network peers peer connect_to_disconnected_peers():  Couldn't connect to the disconnected peer {}: {}", remote_address, e);
                 let _ = self.disconnect_from_peer(remote_address);
             }
         }
@@ -262,7 +262,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
     /// Broadcasts a `Ping` message to all connected peers.
     async fn broadcast_pings(&self) {
-        trace!("Broadcasting Ping messages");
+        trace!("network peers peer broadcast_pings():  Broadcasting Ping messages");
 
         // consider peering tests that don't use the consensus layer
         let current_block_height = if let Some(ref consensus) = self.consensus() {
@@ -285,7 +285,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
     /// Broadcasts a `GetPeers` message to all connected peers to request for more peers.
     async fn broadcast_getpeers_requests(&self) {
-        trace!("Sending GetPeers requests to connected peers");
+        trace!("network peers peer broadcast_getpeers_requests():  Sending GetPeers requests to connected peers");
 
         for remote_address in self.connected_addrs() {
             self.outbound
@@ -334,7 +334,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
     ///
     #[inline]
     pub(crate) fn disconnect_from_peer(&self, remote_address: SocketAddr) -> Result<(), NetworkError> {
-        debug!("Disconnecting from {}", remote_address);
+        debug!("network peers peer disconnect_from_peer():  Disconnecting from {}", remote_address);
 
         if let Some(ref consensus) = self.consensus() {
             if self.peer_book.read().is_syncing_blocks(remote_address) {
@@ -418,7 +418,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let max_peers = self.config.maximum_number_of_connected_peers() as usize;
 
         if num_connected >= max_peers || num_connected + num_connecting >= max_peers {
-            warn!("Max number of connections ({}) reached", max_peers);
+            warn!("network peers peer can_connect():  Max number of connections ({}) reached", max_peers);
             false
         } else {
             true

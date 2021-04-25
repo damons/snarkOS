@@ -210,7 +210,7 @@ impl PeerBook {
         // Check if the peer is a known disconnected peer.
         if !self.disconnected_peers.contains_key(&address) {
             // If not, add the address into the disconnected peers.
-            trace!("Adding an undiscovered peer to the peer book - {}", address);
+            trace!("network peers peer_book set_disconnected():  Adding an undiscovered peer to the peer book - {}", address);
             self.add_peer(address);
         }
 
@@ -230,7 +230,7 @@ impl PeerBook {
             .entry(address)
             .or_insert_with(|| PeerInfo::new(address));
 
-        debug!("Added {} to the peer book", address);
+        debug!("network peers peer_book add_peer():  Added {} to the peer book", address);
     }
 
     ///
@@ -255,7 +255,7 @@ impl PeerBook {
                 .ok_or(NetworkError::PeerBookMissingPeer);
         }
 
-        error!("Missing {} in the peer book", address);
+        error!("network peers peer_book get_peer():  Missing {} in the peer book", address);
         Err(NetworkError::PeerBookMissingPeer)
     }
 
@@ -306,7 +306,7 @@ impl PeerBook {
         if let Some(ref quality) = self.peer_quality(addr) {
             *quality.last_seen.write() = Some(chrono::Utc::now());
         } else {
-            trace!("Attempted to update state of a peer that's not connected: {}", addr);
+            trace!("network peers peer_book update_last_seen():  Attempted to update state of a peer that's not connected: {}", addr);
         }
     }
 
@@ -317,7 +317,7 @@ impl PeerBook {
             quality.expecting_pong.store(true, Ordering::SeqCst);
         } else {
             // shouldn't occur, but just in case
-            warn!("Tried to send a Ping to an unknown peer: {}!", target);
+            warn!("network peers peer_book sending_ping():  Tried to send a Ping to an unknown peer: {}!", target);
         }
     }
 
@@ -327,7 +327,7 @@ impl PeerBook {
             if quality.expecting_pong.load(Ordering::SeqCst) {
                 let ping_sent = quality.last_ping_sent.lock().unwrap();
                 let rtt = ping_sent.elapsed().as_millis() as u64;
-                trace!("RTT for {} is {}ms", source, rtt);
+                trace!("network peers peer_book received_pong():  RTT for {} is {}ms", source, rtt);
                 quality.rtt_ms.store(rtt, Ordering::SeqCst);
                 quality.expecting_pong.store(false, Ordering::SeqCst);
             } else {
@@ -335,7 +335,7 @@ impl PeerBook {
             }
         } else {
             // shouldn't occur, but just in case
-            warn!("Received a Pong from an unknown peer: {}!", source);
+            warn!("network peers peer_book received_pong():  Received a Pong from an unknown peer: {}!", source);
         }
     }
 
@@ -345,7 +345,7 @@ impl PeerBook {
             pq.remaining_sync_blocks.store(count as u16, Ordering::SeqCst);
             true
         } else {
-            warn!("Peer for expecting_sync_blocks purposes not found! (probably disconnected)");
+            warn!("network peers peer_book expecting_sync_blocks():  Peer for expecting_sync_blocks purposes not found! (probably disconnected)");
             false
         }
     }
@@ -355,7 +355,7 @@ impl PeerBook {
         if let Some(ref pq) = self.peer_quality(addr) {
             pq.remaining_sync_blocks.fetch_sub(1, Ordering::SeqCst) == 1
         } else {
-            warn!("Peer for got_sync_block purposes not found! (probably disconnected)");
+            warn!("network peers peer_book got_sync_block():  Peer for got_sync_block purposes not found! (probably disconnected)");
             true
         }
     }
@@ -365,7 +365,7 @@ impl PeerBook {
         if let Some(ref pq) = self.peer_quality(addr) {
             pq.remaining_sync_blocks.load(Ordering::SeqCst) != 0
         } else {
-            trace!("Peer for is_syncing_blocks purposes not found! (probably disconnected)");
+            trace!("network peers peer_book is_syncing_blocks():  Peer for is_syncing_blocks purposes not found! (probably disconnected)");
             false
         }
     }
@@ -376,7 +376,7 @@ impl PeerBook {
             let missing_sync_blocks = peer_info.quality.remaining_sync_blocks.swap(0, Ordering::SeqCst);
             if missing_sync_blocks != 0 {
                 warn!(
-                    "Was expecting {} more sync blocks from {}",
+                    "network peers peer_book cancel_any_unfinished_syncing():  Was expecting {} more sync blocks from {}",
                     missing_sync_blocks,
                     peer_info.address(),
                 );
