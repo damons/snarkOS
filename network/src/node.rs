@@ -164,18 +164,18 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
         let self_clone = self.clone();
         let peer_sync_interval = self.config.peer_sync_interval();
+        info!("network node start_services(): peering_task:  Starting peer update thread with sleep time {:?}.", peer_sync_interval);
         let peering_task = task::spawn(async move {
             loop {
-                info!("network node start_services() peering_task: Updating peers...");
 
                 if let Err(e) = self_clone.update_peers().await {
                     error!("network node start_services() peering_task: Peer update error: {}", e);
                 }
-                info!("network node start_services(): peering_task:  Peers updated.  Sleeping {:?}.", peer_sync_interval);
                 sleep(peer_sync_interval).await;
             }
         });
         self.register_task(peering_task);
+        info!("network node start_services(): peering_task:  Task spawned and registered.");
 
         if !self.config.is_bootnode() {
             let self_clone = self.clone();
