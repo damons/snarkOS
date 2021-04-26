@@ -217,11 +217,11 @@ impl FakeNode {
     pub async fn read_payload(&mut self) -> Result<Payload, NetworkError> {
         let message = match self.reader.read_message().await {
             Ok(msg) => {
-                debug!("read a {}", msg.payload);
+                debug!("testing network mod FakeNode read_payload():  read a {}", msg.payload);
                 msg
             }
             Err(e) => {
-                error!("can't read a payload: {}", e);
+                error!("testing network mod FakeNode read_payload():  can't read a payload: {}", e);
                 return Err(e);
             }
         };
@@ -231,12 +231,12 @@ impl FakeNode {
 
     pub async fn write_message(&self, payload: &Payload) {
         self.writer.write_message(payload).await.unwrap();
-        debug!("wrote a message containing a {} to the stream", payload);
+        debug!("testing network mod FakeNode write_message():  wrote a message containing a {} to the stream", payload);
     }
 
     pub async fn write_bytes(&self, bytes: &[u8]) {
         self.writer.writer.lock().await.write_all(bytes).await.unwrap();
-        debug!("wrote {}B to the stream", bytes.len());
+        debug!("testig network mod FakeNode write_bytes():  wrote {}B to the stream", bytes.len());
     }
 }
 

@@ -127,7 +127,7 @@ impl<S: Storage> Consensus<S> {
 
     /// Register that the node attempted to sync blocks with the given peer.
     pub fn register_block_sync_attempt(&self, provider: SocketAddr) {
-        trace!("Attempting to sync with {}", provider);
+        trace!("network consensus consensus register_block_sync_attempt():  Attempting to sync with {}", provider);
         *self.last_block_sync.write() = Some(Instant::now());
     }
 

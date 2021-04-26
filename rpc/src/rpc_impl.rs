@@ -265,7 +265,7 @@ impl<S: Storage + Send + Sync + 'static> RpcFunctions for RpcImpl<S> {
 
                 if let Ok(inserted) = self.memory_pool()?.lock().insert(&storage, entry) {
                     if inserted.is_some() {
-                        info!("Transaction added to the memory pool.");
+                        info!("rpc rpc_impl send_raw_transaction():  Transaction added to the memory pool.");
                         // TODO(ljedrz): checks if needs to be propagated to the network; if need be, this could
                         // be made automatic at the time when a tx from any source is added the memory pool
                     }

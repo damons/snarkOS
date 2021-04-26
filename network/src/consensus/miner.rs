@@ -41,12 +41,12 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
     /// Calling this function multiple times will spawn additional listeners on separate threads.
     pub fn spawn(self, tokio_handle: runtime::Handle) -> thread::JoinHandle<()> {
         let local_address = self.node.local_address().unwrap();
-        info!("Initializing Aleo miner - Your miner address is {}", self.miner_address);
+        info!("network consensus miner spawn():  Initializing Aleo miner - Your miner address is {}", self.miner_address);
         let miner = Miner::new(
             self.miner_address.clone(),
             Arc::clone(&self.node.expect_consensus().consensus),
         );
-        info!("Miner instantiated; starting to mine blocks");
+        info!("network consensus miner spawn():  Miner instantiated; starting to mine blocks");
 
         let mut mining_failure_count = 0;
         let mining_failure_threshold = 10;
@@ -54,7 +54,7 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
         let mining_thread = thread::Builder::new().name("snarkOS_miner".into()).spawn(move || {
             loop {
                 if self.node.is_shutting_down() {
-                    debug!("The node is shutting down, stopping mining");
+                    debug!("network consensus miner spawn():  The node is shutting down, stopping mining...");
                     break;
                 }
 
@@ -66,7 +66,7 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
                     self.node.set_state(State::Mining);
                 }
 
-                info!("Starting to mine the next block");
+                info!("network consensus miner spawn():  Starting to mine the next block...");
 
                 let (block, _coinbase_records) = match miner.mine_block() {
                     Ok(mined_block) => mined_block,
@@ -78,14 +78,14 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
                         }
 
                         warn!(
-                            "Miner failed to mine a block {} time(s). (error message: {}).",
+                            "network consensus miner spawn():  Miner failed to mine a block {} time(s). (error message: {}).",
                             mining_failure_count, error
                         );
                         mining_failure_count += 1;
 
                         if mining_failure_count >= mining_failure_threshold {
                             warn!(
-                                "Miner has failed to mine a block {} times. Shutting down miner.",
+                                "network consensus miner spawn():  Miner has failed to mine a block {} times. Shutting down miner.",
                                 mining_failure_count
                             );
                             break;
@@ -100,12 +100,12 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
                     self.node.set_state(State::Idle);
                 }
 
-                info!("Mined a new block: {:?}", hex::encode(block.header.get_hash().0));
+                info!("network consensus miner spawn():  Mined a new block: {:?}", hex::encode(block.header.get_hash().0));
 
                 let serialized_block = if let Ok(block) = block.serialize() {
                     block
                 } else {
-                    error!("Our own miner baked an unserializable block!");
+                    error!("network consensus miner spawn():  Our own miner baked an unserializable block!");
                     continue;
                 };
 
@@ -118,6 +118,6 @@ impl<S: Storage + Send + Sync + 'static> MinerInstance<S> {
             }
         });
 
-        mining_thread.expect("failed to spawn the miner thread")
+        mining_thread.expect("network consensus miner spawn():  Failed to spawn the miner thread.")
     }
 }

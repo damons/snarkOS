@@ -64,19 +64,19 @@ impl Inbound {
             // Update the state to reflect a new failure.
             *failure = true;
             *failure_count += 1;
-            error!("Network error: {}", error);
+            error!("network inbound inbound handle_failure():  Network error: {}", error);
 
             // Determine if we should disconnect.
             *disconnect_from_peer = error.is_fatal() || *failure_count >= 10;
         } else {
-            debug!("A connection errored again in the same loop (error message: {})", error);
+            debug!("network inbound inbound handle_failure():  A connection errored again in the same loop (error message: {})", error);
         }
     }
 
     #[inline]
     pub(crate) async fn route(&self, response: Message) {
         if let Err(err) = self.sender.send(response).await {
-            error!("Failed to route a response for a message: {}", err);
+            error!("network inbound inbound route():  Failed to route a response for a message: {}", err);
         }
     }
 
@@ -100,14 +100,14 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
             (listener_address, listener)
         };
         self.set_local_address(listener_address);
-        info!("Node {:x} listening at {}", self.name, listener_address);
+        info!("network inbound inbound listen():  Node {:x} listening at {}", self.name, listener_address);
 
         let node = self.clone();
         let listener_handle = task::spawn(async move {
             loop {
                 match listener.accept().await {
                     Ok((stream, remote_address)) => {
-                        info!("Got a connection request from {}", remote_address);
+                        info!("network inbound inbound listen():  Got a connection request from {}", remote_address);
 
                         let handshake_result = tokio::time::timeout(
                             Duration::from_secs(crate::HANDSHAKE_TIME_LIMIT_SECS as u64),
@@ -127,7 +127,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                                     node_clone.listen_for_messages(&mut reader).await;
                                 });
 
-                                trace!("Connected to {}", remote_address);
+                                trace!("network inbound inbound listen():  Connected to {}", remote_address);
 
                                 // immediately send a ping to provide the peer with our block height
                                 node.send_ping(remote_address).await;
@@ -140,16 +140,16 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                                 }
                             }
                             Ok(Err(e)) => {
-                                error!("Failed to accept a connection: {}", e);
+                                error!("network inbound inbound listen():  Failed to accept a connection: {}", e);
                                 let _ = node.disconnect_from_peer(remote_address);
                             }
                             Err(_) => {
-                                error!("Failed to accept a connection: the handshake timed out");
+                                error!("network inbound inbound listen():  Failed to accept a connection: the handshake timed out");
                                 let _ = node.disconnect_from_peer(remote_address);
                             }
                         }
                     }
-                    Err(e) => error!("Failed to accept a connection: {}", e),
+                    Err(e) => error!("network inbound inbound listen():  Failed to accept a connection: {}", e),
                 }
             }
         });
@@ -179,7 +179,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                         true => {
                             // TODO (howardwu): Remove this and rearchitect how disconnects are handled using the peer manager.
                             // TODO (howardwu): Implement a handler so the node does not lose state of undetected disconnects.
-                            warn!("Disconnecting from an unreliable peer");
+                            warn!("netowrk inbound inbound listen_for_messages():  Disconnecting from an unreliable peer");
                             let _ = self.disconnect_from_peer(reader.addr);
                             break; // the error has already been handled and reported
                         }
@@ -222,7 +222,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
             self.peer_book.read().update_last_seen(addr);
             addr
         } else {
-            unreachable!("All messages processed sent to the inbound receiver are Inbound");
+            unreachable!("network inbound inbound process_incoming_messages():  All messages processed sent to the inbound receiver are Inbound");
         };
 
         match payload {
@@ -310,7 +310,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                 // already handled with priority in Inbound::listen_for_messages
             }
             Payload::Unknown => {
-                warn!("Unknown payload received; this could indicate that the client you're using is out-of-date");
+                warn!("network inbound inbound process_incoming_messages():  Unknown payload received; this could indicate that the client you're using is out-of-date");
             }
         }
 
@@ -350,14 +350,14 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         }
         let len = reader.read_exact(&mut buf[..len]).await?;
         noise.read_message(&buf[..len], &mut buffer)?;
-        trace!("received e (XX handshake part 1/3) from {}", remote_address);
+        trace!("network inbound inbound connection_request():  Received e (XX handshake part 1/3) from {}", remote_address);
 
         // -> e, ee, s, es
         let own_version = Version::serialize(&Version::new(1u64, listener_address.port())).unwrap(); // TODO (raychu86): Establish a formal node version.
         let len = noise.write_message(&own_version, &mut buffer)?;
         writer.write_all(&[len as u8]).await?;
         writer.write_all(&buffer[..len]).await?;
-        trace!("sent e, ee, s, es (XX handshake part 2/3) to {}", remote_address);
+        trace!("network inbound inbound connection_request():  Sent e, ee, s, es (XX handshake part 2/3) to {}", remote_address);
 
         // <- s, se, psk
         reader.read_exact(&mut buf[..1]).await?;
@@ -368,7 +368,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let len = reader.read_exact(&mut buf[..len]).await?;
         let len = noise.read_message(&buf[..len], &mut buffer)?;
         let peer_version = Version::deserialize(&buffer[..len])?;
-        trace!("received s, se, psk (XX handshake part 3/3) from {}", remote_address);
+        trace!("network inbound inbound connection_request():  Received s, se, psk (XX handshake part 3/3) from {}", remote_address);
 
         // the remote listening address
         let remote_listener = SocketAddr::from((remote_address.ip(), peer_version.listening_port));

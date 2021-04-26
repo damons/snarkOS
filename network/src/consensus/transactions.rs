@@ -36,7 +36,7 @@ impl<S: Storage + Send + Sync + 'static> Consensus<S> {
                 .send_request(Message::new(Direction::Outbound(sync_node), Payload::GetMemoryPool))
                 .await;
         } else {
-            debug!("No sync node is registered, transactions could not be synced");
+            debug!("network consensus transactions update_transactions():  No sync node is registered, transactions could not be synced");
         }
     }
 
@@ -46,7 +46,7 @@ impl<S: Storage + Send + Sync + 'static> Consensus<S> {
         transaction_bytes: Vec<u8>,
         transaction_sender: SocketAddr,
     ) -> Result<(), NetworkError> {
-        debug!("Propagating a transaction to peers");
+        debug!("network consensus transactions propagate_transaction():  Propagating a transaction to peers");
 
         let local_address = self.node().local_address().unwrap();
 
@@ -77,12 +77,12 @@ impl<S: Storage + Send + Sync + 'static> Consensus<S> {
                 let storage = self.storage();
 
                 if !self.consensus.verify_transaction(&tx)? {
-                    error!("Received a transaction that was invalid");
+                    error!("network consensus transactions received_transaction():  Received a transaction that was invalid");
                     return Ok(());
                 }
 
                 if tx.value_balance.is_negative() {
-                    error!("Received a transaction that was a coinbase transaction");
+                    error!("network consensus transactions received_transaction(): Received a transaction that was a coinbase transaction");
                     return Ok(());
                 }
 
@@ -96,7 +96,7 @@ impl<S: Storage + Send + Sync + 'static> Consensus<S> {
 
             if let Ok(inserted) = insertion {
                 if inserted.is_some() {
-                    info!("Transaction added to memory pool.");
+                    info!("network consensus transactions received_transaction():  Transaction added to memory pool.");
                     self.propagate_transaction(transaction, source).await?;
                 }
             }
@@ -149,21 +149,21 @@ impl<S: Storage + Send + Sync + 'static> Consensus<S> {
 
             if let Ok(Some(txid)) = memory_pool.insert(&storage, entry) {
                 debug!(
-                    "Transaction added to memory pool with txid: {:?}",
+                    "network consensus transactions received_memory_pool():  Transaction added to memory pool with txid: {:?}",
                     hex::encode(txid.clone())
                 );
             }
         }
 
         //  Cleanse and store transactions once batch has been received.
-        debug!("Cleansing memory pool transactions in database");
+        debug!("network consensus transactions received_memory_pool():  Cleansing memory pool transactions in database");
         memory_pool
             .cleanse(&storage)
-            .unwrap_or_else(|error| debug!("Failed to cleanse memory pool transactions in database {}", error));
-        debug!("Storing memory pool transactions in database");
+            .unwrap_or_else(|error| debug!("network consensus transactions received_memory_pool():  Failed to cleanse memory pool transactions in database {}", error));
+        debug!("network consensus transactions received_memory_pool():  Storing memory pool transactions in database");
         memory_pool
             .store(&storage)
-            .unwrap_or_else(|error| debug!("Failed to store memory pool transaction in database {}", error));
+            .unwrap_or_else(|error| debug!("network consensus transactions received_memory_pool():  Failed to store memory pool transaction in database {}", error));
 
         Ok(())
     }

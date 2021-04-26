@@ -165,20 +165,20 @@ impl<S: Storage> Miner<S> {
     pub fn mine_block(&self) -> Result<(Block<Tx>, Vec<DPCRecord<Components>>), ConsensusError> {
         let candidate_transactions = self.fetch_memory_pool_transactions()?;
 
-        debug!("The miner is creating a block");
+        debug!("consensus miner mine_block():  The miner is creating a block.");
 
         let (previous_block_header, transactions, coinbase_records) = self.establish_block(&candidate_transactions)?;
 
-        debug!("The miner generated a coinbase transaction");
+        debug!("consensus miner mine_block():  The miner generated a coinbase transaction.");
 
         for (index, record) in coinbase_records.iter().enumerate() {
             let record_commitment = hex::encode(&to_bytes![record.commitment()]?);
-            debug!("Coinbase record {:?} commitment: {:?}", index, record_commitment);
+            debug!("consensus miner mine_block():  Coinbase record {:?} commitment: {:?}", index, record_commitment);
         }
 
         let header = self.find_block(&transactions, &previous_block_header)?;
 
-        debug!("The Miner found a block");
+        debug!("consensus miner mine_block():  The Miner found a block.");
 
         let block = Block { header, transactions };
 

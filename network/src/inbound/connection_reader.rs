@@ -81,7 +81,7 @@ impl ConnReader {
         }
         let payload = Payload::deserialize(&self.buffer[..decrypted_len])?;
 
-        debug!("Received a '{}' message from {}", payload, self.addr);
+        debug!("network inbound connection_reader read_message(): Received a '{}' message from {}", payload, self.addr);
 
         Ok(Message::new(Direction::Inbound(self.addr), payload))
     }

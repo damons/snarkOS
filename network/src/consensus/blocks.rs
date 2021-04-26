@@ -38,13 +38,13 @@ impl<S: Storage> Consensus<S> {
                 .await;
         } else {
             // If no sync node is available, wait until peers have been established.
-            debug!("No sync node is registered, blocks could not be synced");
+            debug!("network consensus blocks update_blocks():  No sync node is registered, blocks could not be synced");
         }
     }
 
     /// Broadcast block to connected peers
     pub async fn propagate_block(&self, block_bytes: Vec<u8>, block_miner: SocketAddr) {
-        debug!("Propagating a block to peers");
+        debug!("network consensus blocks propagate_blocks():  Propagating a block to peers");
 
         for remote_address in self.node().connected_addrs() {
             if remote_address != block_miner {
@@ -79,7 +79,7 @@ impl<S: Storage> Consensus<S> {
 
         let block_struct = Block::deserialize(&block)?;
         info!(
-            "Received block from epoch {} with hash {:?}",
+            "network consensus blocks received_block():  Received block from epoch {} with hash {:?}",
             block_struct.header.time,
             hex::encode(block_struct.header.get_hash().0)
         );

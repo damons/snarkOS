@@ -72,7 +72,7 @@ impl ConnWriter {
             writer.write_all(&buffer[..encrypted_len]).await?;
         }
 
-        debug!("Sent a {} to {}", payload, self.addr);
+        debug!("network outbound connection_writer write_message():  Sent a {} to {}", payload, self.addr);
 
         Ok(())
     }

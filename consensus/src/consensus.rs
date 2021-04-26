@@ -95,7 +95,7 @@ impl<S: Storage> Consensus<S> {
                 self.parameters
                     .verify_header(&block.header, &parent_block.header, &merkle_root, &pedersen_merkle_root)
             {
-                error!("block header failed to verify: {:?}", err);
+                error!("consensus consensus verify_block():  block header failed to verify: {:?}", err);
                 return Ok(false);
             }
         }
@@ -116,15 +116,15 @@ impl<S: Storage> Consensus<S> {
 
         // Check that there is only 1 coinbase transaction
         if coinbase_transaction_count > 1 {
-            error!("multiple coinbase transactions");
+            error!("consensus consensus verify_block():  multiple coinbase transactions");
             return Ok(false);
         }
 
         // Check that the block value balances are correct
         let expected_block_reward = crate::get_block_reward(self.ledger.len() as u32).0;
         if total_value_balance.0 + expected_block_reward != 0 {
-            trace!("total_value_balance: {:?}", total_value_balance);
-            trace!("expected_block_reward: {:?}", expected_block_reward);
+            trace!("consensus consensus verify_block():  total_value_balance: {:?}", total_value_balance);
+            trace!("consensus consensus verify_block():  expected_block_reward: {:?}", expected_block_reward);
 
             return Ok(false);
         }
@@ -137,7 +137,7 @@ impl<S: Storage> Consensus<S> {
     pub fn receive_block(&self, block: &Block<Tx>) -> Result<(), ConsensusError> {
         // Block is an unknown orphan
         if !self.ledger.previous_block_hash_exists(block) && !self.ledger.is_previous_block_canon(&block.header) {
-            debug!("Processing a block that is an unknown orphan");
+            debug!("consensus consensus receive_block():  Processing a block that is an unknown orphan");
 
             // There are two possible cases for an unknown orphan.
             // 1) The block is a genesis block, or
@@ -151,11 +151,11 @@ impl<S: Storage> Consensus<S> {
             // If the block is not an unknown orphan, find the origin of the block
             match self.ledger.get_block_path(&block.header)? {
                 BlockPath::ExistingBlock => {
-                    debug!("Received a pre-existing block");
+                    debug!("consensus consensus receive_block():  Received a pre-existing block");
                     return Err(ConsensusError::PreExistingBlock);
                 }
                 BlockPath::CanonChain(block_height) => {
-                    debug!("Processing a block that is on canon chain. Height {}", block_height);
+                    debug!("consensus consensus receive_block():  Processing a block that is on canon chain. Height {}", block_height);
 
                     self.process_block(block)?;
 
@@ -169,7 +169,7 @@ impl<S: Storage> Consensus<S> {
                 }
                 BlockPath::SideChain(side_chain_path) => {
                     debug!(
-                        "Processing a block that is on side chain. Height {}",
+                        "consensus consensus receive_block():  Processing a block that is on side chain. Height {}",
                         side_chain_path.new_block_number
                     );
 
@@ -177,10 +177,10 @@ impl<S: Storage> Consensus<S> {
                     // perform a fork to the side chain.
                     if side_chain_path.new_block_number > self.ledger.get_current_block_height() {
                         debug!(
-                            "Determined side chain is longer than canon chain by {} blocks",
+                            "consensus consensus receive_block():  Determined side chain is longer than canon chain by {} blocks",
                             side_chain_path.new_block_number - self.ledger.get_current_block_height()
                         );
-                        warn!("A valid fork has been detected. Performing a fork to the side chain.");
+                        warn!("consensus consensus receive_block():  A valid fork has been detected. Performing a fork to the side chain.");
 
                         // Fork to superior side chain
                         self.ledger.revert_for_fork(&side_chain_path)?;

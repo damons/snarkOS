@@ -120,9 +120,9 @@ async fn start_server(config: Config, tokio_handle: Handle) -> anyhow::Result<()
     if !config.node.is_bootnode {
         let memory_pool = Mutex::new(MemoryPool::from_storage(&storage)?);
 
-        info!("Loading Aleo parameters...");
+        info!("snarkos main start_server(): Loading Aleo parameters...");
         let dpc_parameters = PublicParameters::<Components>::load(!config.miner.is_miner)?;
-        info!("Loading complete.");
+        info!("snarkos main start_server(): Parameter loading complete.");
 
         // Fetch the set of valid inner circuit IDs.
         let inner_snark_vk: <<Components as BaseDPCComponents>::InnerSNARK as SNARK>::VerificationParameters =
@@ -184,7 +184,7 @@ async fn start_server(config: Config, tokio_handle: Handle) -> anyhow::Result<()
         );
         node.register_task(rpc_handle);
 
-        info!("Listening for RPC requests on port {}", config.rpc.port);
+        info!("snarkos main start_server(): Listening for RPC requests on port {}", config.rpc.port);
     }
 
     // Start the network services
@@ -199,7 +199,7 @@ async fn start_server(config: Config, tokio_handle: Handle) -> anyhow::Result<()
                 node.register_thread(handle);
             }
             Err(_) => info!(
-                "Miner not started. Please specify a valid miner address in your ~/.snarkOS/config.toml file or by using the --miner-address option in the CLI."
+                "snarkos main start_server(): Miner not started. Please specify a valid miner address in your ~/.snarkOS/config.toml file or by using the --miner-address option in the CLI."
             ),
         }
     }

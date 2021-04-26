@@ -128,7 +128,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
 
     pub fn set_consensus(&mut self, consensus: Consensus<S>) {
         if self.consensus.set(Arc::new(consensus)).is_err() {
-            panic!("consensus was set more than once!");
+            panic!("network node set_consensus():  consensus was set more than once!");
         }
     }
 
@@ -156,7 +156,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let incoming_task = task::spawn(async move {
             loop {
                 if let Err(e) = self_clone.process_incoming_messages(&mut receiver).await {
-                    error!("Node error: {}", e);
+                    error!("network node start_services():  Node error: {}", e);
                 }
             }
         });
@@ -166,11 +166,12 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
         let peer_sync_interval = self.config.peer_sync_interval();
         let peering_task = task::spawn(async move {
             loop {
-                info!("Updating peers");
+                info!("network node start_services():  Updating peers...");
 
                 if let Err(e) = self_clone.update_peers().await {
                     error!("Peer update error: {}", e);
                 }
+                info!("network node start_services():  Peers updated.  Sleeping {:?}", peer_sync_interval);
                 sleep(peer_sync_interval).await;
             }
         });
@@ -190,7 +191,7 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                     }
 
                     // report node's current state
-                    trace!("Node state: {:?}", self_clone.state());
+                    trace!("network node start_services():  Node state: {:?}", self_clone.state());
                 }
             });
             self.register_task(state_mgmt_task);
@@ -204,11 +205,12 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
                         sleep(transaction_sync_interval).await;
 
                         if !consensus.is_syncing_blocks() {
-                            info!("Updating transactions");
+                            info!("network node start_services():  tx_sync_task Updating transactions...");
 
                             // select last seen node as block sync node
                             let sync_node = self_clone.peer_book.read().last_seen();
                             consensus.update_transactions(sync_node).await;
+                            info!("network node start_services():  tx_sync_task Transactions updated.");
                         }
                     }
                 });
@@ -218,14 +220,14 @@ impl<S: Storage + Send + Sync + 'static> Node<S> {
     }
 
     pub fn shut_down(&self) {
-        debug!("Shutting down");
+        debug!("network node shut_down():  Shutting down");
 
         for addr in self.connected_addrs() {
             let _ = self.disconnect_from_peer(addr);
         }
 
         for handle in self.threads.lock().drain(..).rev() {
-            let _ = handle.join().map_err(|e| error!("Can't join a thread: {:?}", e));
+            let _ = handle.join().map_err(|e| error!("network node shut_down():  Can't join a thread: {:?}", e));
         }
 
         for handle in self.tasks.lock().drain(..).rev() {
@@ -274,7 +276,7 @@ impl<S: Storage> Drop for InnerNode<S> {
         }
 
         for handle in self.threads.lock().drain(..).rev() {
-            let _ = handle.join().map_err(|e| error!("Can't join a thread: {:?}", e));
+            let _ = handle.join().map_err(|e| error!("network node drop():  Can't join a thread: {:?}", e));
         }
 
         for handle in self.tasks.lock().drain(..).rev() {
